@@ -18,14 +18,9 @@
 
 package org.apache.storm.scheduler.resource.strategies.scheduling;
 
-import java.util.Map;
-
-import org.apache.storm.scheduler.Cluster;
-import org.apache.storm.scheduler.Topologies;
 import org.apache.storm.scheduler.TopologyDetails;
-import org.apache.storm.scheduler.resource.RAS_Nodes;
 import org.apache.storm.scheduler.resource.SchedulingResult;
-import org.apache.storm.scheduler.resource.User;
+import org.apache.storm.scheduler.resource.SchedulingState;
 
 /**
  * An interface to for implementing different scheduling strategies for the resource aware scheduling
@@ -36,7 +31,7 @@ public interface IStrategy {
     /**
      * initialize prior to scheduling
      */
-    public void prepare(Topologies topologies, Cluster cluster, Map<String, User> userMap, RAS_Nodes nodes);
+    void prepare(SchedulingState schedulingState);
 
     /**
      * This method is invoked to calcuate a scheduling for topology td
@@ -45,6 +40,8 @@ public interface IStrategy {
      * The strategy must calculate a scheduling in the format of Map<WorkerSlot, Collection<ExecutorDetails>> where the key of
      * this map is the worker slot that the value (collection of executors) should be assigned to.
      * if a scheduling is calculated successfully, put the scheduling map in the SchedulingResult object.
+     * PLEASE NOTE: Any other operations done on the cluster from a scheduling strategy will NOT persist or be realized.
+     * The data structures passed in can be used in any way necessary to assist in calculating a scheduling, but will NOT actually change the state of the cluster.
      */
-    public SchedulingResult schedule(TopologyDetails td);
+    SchedulingResult schedule(TopologyDetails td);
 }

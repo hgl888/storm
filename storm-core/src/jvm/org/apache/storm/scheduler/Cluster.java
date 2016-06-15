@@ -57,7 +57,7 @@ public class Cluster {
     /**
      * key topologyId, Value: requested and assigned resources (e.g., on-heap/off-heap mem, cpu) for each topology.
      */
-    private Map<String, Double[]> resources;
+    private Map<String, Double[]> topologyResources;
 
     /**
      * a map from hostname to supervisor id.
@@ -76,7 +76,7 @@ public class Cluster {
         this.assignments = new HashMap<String, SchedulerAssignmentImpl>(assignments.size());
         this.assignments.putAll(assignments);
         this.status = new HashMap<String, String>();
-        this.resources = new HashMap<String, Double[]>();
+        this.topologyResources = new HashMap<String, Double[]>();
         this.supervisorsResources = new HashMap<String, Double[]>();
         this.hostToId = new HashMap<String, List<String>>();
         for (Map.Entry<String, SupervisorDetails> entry : supervisors.entrySet()) {
@@ -92,18 +92,20 @@ public class Cluster {
     }
 
     /**
-     * Get a copy of this cluster object
+     * Copy constructor
      */
-    public static Cluster getCopy(Cluster cluster) {
-        HashMap<String, SchedulerAssignmentImpl> newAssignments = new HashMap<String, SchedulerAssignmentImpl>();
-        for (Map.Entry<String, SchedulerAssignmentImpl> entry : cluster.assignments.entrySet()) {
-            newAssignments.put(entry.getKey(), new SchedulerAssignmentImpl(entry.getValue().getTopologyId(), entry.getValue().getExecutorToSlot()));
+    public Cluster(Cluster src) {
+        this(src.inimbus, src.supervisors, new HashMap<String, SchedulerAssignmentImpl>(), new HashMap<String, Object>(src.conf));
+        this.supervisorsResources.putAll(src.supervisorsResources);
+        for (Map.Entry<String, SchedulerAssignmentImpl> entry : src.assignments.entrySet()) {
+            this.assignments.put(entry.getKey(), new SchedulerAssignmentImpl(entry.getValue().getTopologyId(), entry.getValue().getExecutorToSlot()));
         }
-        Map newConf = new HashMap<String, Object>();
-        newConf.putAll(cluster.conf);
-        Cluster copy = new Cluster(cluster.inimbus, cluster.supervisors, newAssignments, newConf);
-        copy.status = new HashMap<>(cluster.status);
-        return copy;
+        this.status.putAll(src.status);
+        this.topologyResources.putAll(src.topologyResources);
+        this.blackListedHosts.addAll(src.blackListedHosts);
+        if (src.networkTopography != null) {
+            this.networkTopography = new HashMap<String, List<String>>(src.networkTopography);
+        }
     }
     
     public void setBlacklistedHosts(Set<String> hosts) {
@@ -523,6 +525,10 @@ public class Cluster {
         return networkTopography;
     }
 
+    public void setNetworkTopography(Map<String, List<String>> networkTopography) {
+        this.networkTopography = networkTopography;
+    }
+
     private String getStringFromStringList(Object o) {
         StringBuilder sb = new StringBuilder();
         for (String s : (List<String>) o) {
@@ -617,13 +623,13 @@ public class Cluster {
                     supervisorToAssignedMem.put(nodeId, assignedMemPerSlot);
                 }
             }
-            if (this.getResourcesMap().containsKey(topId)) {
-                Double[] topo_resources = getResourcesMap().get(topId);
+            if (this.getTopologyResourcesMap().containsKey(topId)) {
+                Double[] topo_resources = getTopologyResourcesMap().get(topId);
                 topo_resources[3] = assignedMemForTopology;
             } else {
                 Double[] topo_resources = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
                 topo_resources[3] = assignedMemForTopology;
-                this.setResources(topId, topo_resources);
+                this.setTopologyResources(topId, topo_resources);
             }
         }
 
@@ -662,22 +668,50 @@ public class Cluster {
         this.status.putAll(statusMap);
     }
 
-    public void setResources(String topologyId, Double[] resources) {
-        this.resources.put(topologyId, resources);
+    /**
+     * Set the amount of resources used used by a topology. Used for displaying resource information on the UI
+     * @param topologyId
+     * @param resources describes the resources requested and assigned to topology in the following format in an array:
+     *  {requestedMemOnHeap, requestedMemOffHeap, requestedCpu, assignedMemOnHeap, assignedMemOffHeap, assignedCpu}
+     */
+    public void setTopologyResources(String topologyId, Double[] resources) {
+        this.topologyResources.put(topologyId, resources);
     }
 
-    public void setResourcesMap(Map<String, Double[]> topologies_resources) {
-        this.resources.putAll(topologies_resources);
+    /**
+     * Set the amount of resources used used by a topology. Used for displaying resource information on the UI
+     * @param topologyResources a map that contains multiple topologies and the resources the topology requested and assigned.
+     * Key: topology id Value: an array that describes the resources the topology requested and assigned in the following format:
+     *  {requestedMemOnHeap, requestedMemOffHeap, requestedCpu, assignedMemOnHeap, assignedMemOffHeap, assignedCpu}
+     */
+    public void setTopologyResourcesMap(Map<String, Double[]> topologyResources) {
+        this.topologyResources.putAll(topologyResources);
     }
 
-    public Map<String, Double[]> getResourcesMap() {
-        return this.resources;
+    /**
+     * Get the amount of resources used by topologies.  Used for displaying resource information on the UI
+     * @return  a map that contains multiple topologies and the resources the topology requested and assigned.
+     * Key: topology id Value: an array that describes the resources the topology requested and assigned in the following format:
+     *  {requestedMemOnHeap, requestedMemOffHeap, requestedCpu, assignedMemOnHeap, assignedMemOffHeap, assignedCpu}
+     */
+    public Map<String, Double[]> getTopologyResourcesMap() {
+        return this.topologyResources;
     }
 
-    public void setSupervisorsResourcesMap(Map<String, Double[]> supervisors_resources) {
-        this.supervisorsResources.putAll(supervisors_resources);
+    /**
+     * Sets the amount of used and free resources on a supervisor. Used for displaying resource information on the UI
+     * @param supervisorResources a map where the key is the supervisor id and the value is a map that represents
+     * resource usage for a supervisor in the following format: {totalMem, totalCpu, usedMem, usedCpu}
+     */
+    public void setSupervisorsResourcesMap(Map<String, Double[]> supervisorResources) {
+        this.supervisorsResources.putAll(supervisorResources);
     }
 
+    /**
+     * Get the amount of used and free resources on a supervisor.  Used for displaying resource information on the UI
+     * @return  a map where the key is the supervisor id and the value is a map that represents
+     * resource usage for a supervisor in the following format: {totalMem, totalCpu, usedMem, usedCpu}
+     */
     public Map<String, Double[]> getSupervisorsResourcesMap() {
         return this.supervisorsResources;
     }

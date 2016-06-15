@@ -22,6 +22,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.storm.Config;
 import org.apache.storm.generated.Bolt;
@@ -117,7 +118,7 @@ public class TopologyDetails {
         return ret;
     }
 
-    public Collection<ExecutorDetails> getExecutors() {
+    public Set<ExecutorDetails> getExecutors() {
         return this.executorToComponent.keySet();
     }
 
@@ -420,7 +421,7 @@ public class TopologyDetails {
     /**
      * Add default resource requirements for a executor
      */
-    public void addDefaultResforExec(ExecutorDetails exec) {
+    private void addDefaultResforExec(ExecutorDetails exec) {
         Double topologyComponentCpuPcorePercent = Utils.getDouble(this.topologyConf.get(Config.TOPOLOGY_COMPONENT_CPU_PCORE_PERCENT), null);
         Double topologyComponentResourcesOffheapMemoryMb = Utils.getDouble(this.topologyConf.get(Config.TOPOLOGY_COMPONENT_RESOURCES_OFFHEAP_MEMORY_MB), null);
         Double topologyComponentResourcesOnheapMemoryMb = Utils.getDouble(this.topologyConf.get(Config.TOPOLOGY_COMPONENT_RESOURCES_ONHEAP_MEMORY_MB), null);

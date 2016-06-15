@@ -1,4 +1,6 @@
-Master Branch: [![Travis CI](https://travis-ci.org/apache/storm.svg?branch=master)](https://travis-ci.org/apache/storm)
+Master Branch: 
+[![Travis CI](https://travis-ci.org/apache/storm.svg?branch=master)](https://travis-ci.org/apache/storm)
+[![Maven Version](https://maven-badges.herokuapp.com/maven-central/org.apache.storm/storm-core/badge.svg)](http://search.maven.org/#search|gav|1|g:"org.apache.storm"%20AND%20a:"storm-core")
 
 Storm is a distributed realtime computation system. Similar to how Hadoop provides a set of general primitives for doing batch processing, Storm provides a set of general primitives for doing realtime computation. Storm is simple, can be used with any programming language, [is used by many companies](http://storm.apache.org/documentation/Powered-By.html), and is a lot of fun to use!
 
@@ -91,6 +93,10 @@ under the License.
 * Boyang Jerry Peng ([@jerrypeng](https://github.com/jerrypeng))
 * Zhuo Liu ([@zhuoliu](https://github.com/zhuoliu))
 * Haohui Mai ([@haohui](https://github.com/haohui))
+* Sanket Chintapalli ([@redsanket](https://github.com/redsanket))
+* Longda Feng ([@longda](https://github.com/longdafeng))
+* John Fang ([@hustfxj](https://github.com/hustfxj))
+* Abhishek Agarwal ([@abhishekagarwal87](https://github.com/abhishekagarwal87))
 
 ## Contributors
 
@@ -228,7 +234,6 @@ under the License.
 * Renkai Ge ([@Renkai](https://github.com/Renkai))
 * Aaron Coburn ([@acoburn](https://github.com/acoburn))
 * Rick Kellogg ([@rmkellogg](https://github.com/rmkellogg))
-* Abhishek Agarwal ([@abhishekagarwal87](https://github.com/abhishekagarwal87))
 * chenyuzhao ([@danny0405](https://github.com/danny0405))
 * Michael Schonfeld ([@schonfeld](https://github.com/schonfeld))
 * Erik Weathers ([@erikdw](https://github.com/erikdw))
@@ -249,7 +254,18 @@ under the License.
 * Satish Duggana ([@satishd](https://github.com/satishd))
 * Seth Ammons ([@sethgrid](https://github.com/sethgrid))
 * Aaron Dixon ([@atdixon](https://github.com/atdixon))
-* Roshan Naik([@roshannaik](https://github.com/roshannaik))
+* Roshan Naik ([@roshannaik](https://github.com/roshannaik))
+* Dan Bahir ([#dbahir](https://github.com/dbahir))
+* Alessandro Bellina ([#abellina](https://github.com/abellina))
+* Basti Liu ([@basti](https://github.com/bastiliu))
+* Jark Wu ([@jark](https://github.com/wuchong))
+* Cody Wang ([@unsleepy22](https://github.com/unsleepy22))
+* Karthick Duraisamy Soundararaj ([@dsKarthick](https://github.com/dsKarthick))
+* Olivier Mallassi ([@omallassi](https://github.com/omallassi))
+* Balázs Kossovics ([@kosii](https://github.com/kosii))
+* csivaguru ([@csivaguru](https://github.com/csivaguru))
+* sakanaou ([@sakanaou](https://github.com/sakanaou))
+
 
 ## Acknowledgements
 

@@ -26,8 +26,12 @@ import org.apache.calcite.linq4j.tree.Primitive;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.*;
 import org.apache.calcite.runtime.SqlFunctions;
+import org.apache.calcite.schema.Function;
+import org.apache.calcite.schema.impl.ReflectiveFunctionBase;
+import org.apache.calcite.schema.impl.ScalarFunctionImpl;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.calcite.sql.validate.SqlUserDefinedFunction;
 import org.apache.calcite.util.BuiltInMethod;
 import org.apache.calcite.util.NlsString;
 import org.apache.calcite.util.Util;
@@ -179,6 +183,7 @@ public class ExprCompiler implements RexVisitor<String> {
           .put(builtInMethod(CHARACTER_LENGTH, BuiltInMethod.CHAR_LENGTH, NullPolicy.STRICT))
           .put(builtInMethod(CHAR_LENGTH, BuiltInMethod.CHAR_LENGTH, NullPolicy.STRICT))
           .put(builtInMethod(CONCAT, BuiltInMethod.STRING_CONCAT, NullPolicy.STRICT))
+          .put(builtInMethod(ITEM, BuiltInMethod.ANY_ITEM, NullPolicy.STRICT))
           .put(infixBinary(LESS_THAN, "<", "lt"))
           .put(infixBinary(LESS_THAN_OR_EQUAL, "<=", "le"))
           .put(infixBinary(GREATER_THAN, ">", "gt"))
@@ -198,13 +203,27 @@ public class ExprCompiler implements RexVisitor<String> {
           .put(expectNot(IS_NOT_FALSE, false))
           .put(AND, AND_EXPR)
           .put(OR, OR_EXPR)
-          .put(NOT, NOT_EXPR);
+          .put(NOT, NOT_EXPR)
+          .put(CAST, CAST_EXPR);
       this.translators = builder.build();
+    }
+
+    private CallExprPrinter getCallExprPrinter(SqlOperator op) {
+      if (translators.containsKey(op)) {
+        return translators.get(op);
+      } else if (op instanceof SqlUserDefinedFunction) {
+        Function function = ((SqlUserDefinedFunction) op).getFunction();
+        if (function instanceof ReflectiveFunctionBase) {
+          Method method = ((ReflectiveFunctionBase) function).method;
+          return methodCall(op, method, NullPolicy.STRICT).getValue();
+        }
+      }
+      return null;
     }
 
     private String compile(ExprCompiler compiler, RexCall call) {
       SqlOperator op = call.getOperator();
-      CallExprPrinter printer = translators.get(op);
+      CallExprPrinter printer = getCallExprPrinter(op);
       if (printer == null) {
         throw new UnsupportedOperationException();
       } else {
@@ -212,8 +231,8 @@ public class ExprCompiler implements RexVisitor<String> {
       }
     }
 
-    private Map.Entry<SqlOperator, CallExprPrinter> builtInMethod(
-        final SqlOperator op, final BuiltInMethod method, NullPolicy nullPolicy) {
+    private Map.Entry<SqlOperator, CallExprPrinter> methodCall(
+            final SqlOperator op, final Method method, NullPolicy nullPolicy) {
       if (nullPolicy != NullPolicy.STRICT) {
         throw new UnsupportedOperationException();
       }
@@ -234,12 +253,17 @@ public class ExprCompiler implements RexVisitor<String> {
               pw.print(String.format("else if (%2$s == null) { %1$s = null; }\n", val, arg));
             }
           }
-          String calc = printMethodCall(method.method, args);
+          String calc = printMethodCall(method, args);
           pw.print(String.format("else { %1$s = %2$s; }\n", val, calc));
           return val;
         }
       };
       return new AbstractMap.SimpleImmutableEntry<>(op, printer);
+    }
+
+    private Map.Entry<SqlOperator, CallExprPrinter> builtInMethod(
+        final SqlOperator op, final BuiltInMethod method, NullPolicy nullPolicy) {
+      return methodCall(op, method.method, nullPolicy);
     }
 
     private Map.Entry<SqlOperator, CallExprPrinter> infixBinary
@@ -369,8 +393,8 @@ public class ExprCompiler implements RexVisitor<String> {
           String s;
           if (rhsNullable) {
             s = foldNullExpr(
-                String.format("(%2$s != null && !(%2$s)) ? false : %1$s", lhs,
-                    rhs), "null", op1);
+                String.format("(%2$s != null && !(%2$s)) ? Boolean.FALSE : ((%1$s == null || %2$s == null) ? null : Boolean.TRUE)",
+                              lhs, rhs), "null", op1);
           } else {
             s = String.format("!(%2$s) ? Boolean.FALSE : %1$s", lhs, rhs);
           }
@@ -410,7 +434,8 @@ public class ExprCompiler implements RexVisitor<String> {
           String s;
           if (rhsNullable) {
             s = foldNullExpr(
-                String.format("(%2$s != null && %2$s) ? true : %1$s", lhs, rhs),
+                String.format("(%2$s != null && %2$s) ? Boolean.TRUE : ((%1$s == null || %2$s == null) ? null : Boolean.FALSE)",
+                              lhs, rhs),
                 "null", op1);
           } else {
             s = String.format("%2$s ? Boolean.valueOf(%2$s) : %1$s", lhs, rhs);
@@ -443,6 +468,21 @@ public class ExprCompiler implements RexVisitor<String> {
         return val;
       }
     };
+
+
+    private static final CallExprPrinter CAST_EXPR = new CallExprPrinter() {
+      @Override
+      public String translate(
+              ExprCompiler compiler, RexCall call) {
+        String val = compiler.reserveName();
+        PrintWriter pw = compiler.pw;
+        RexNode op = call.getOperands().get(0);
+        String lhs = op.accept(compiler);
+        pw.print(String.format("final %1$s %2$s = (%1$s) %3$s;\n",
+                               compiler.javaTypeName(call), val, lhs));
+        return val;
+      }
+    };
   }
 
   private static String foldNullExpr(String notNullExpr, String
@@ -454,7 +494,7 @@ public class ExprCompiler implements RexVisitor<String> {
     }
   }
 
-  private static String printMethodCall(Method method, List<String> args) {
+  public static String printMethodCall(Method method, List<String> args) {
     return printMethodCall(method.getDeclaringClass(), method.getName(),
         Modifier.isStatic(method.getModifiers()), args);
   }
